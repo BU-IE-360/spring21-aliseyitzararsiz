@@ -1,5 +1,5 @@
 # Progress Journal 
 
-## HW1
+## Homework 0
 
-[Here](files/HW1.html) is the hw1 file.
+[Here](file:///C:/Users/aliseyit/Documents/GitHub/spring21-aliseyitzararsiz/files/IE360_Spring21_Homework0.html) is my 5 interesting R examples about time series forecasting.
