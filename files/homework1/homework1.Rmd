@@ -6,7 +6,6 @@ output:
   html_document:
     toc: true
     toc_float: true
-    code_folding: hide
 ---
 
 In this study, I investigate three measures of Turkey and their relatable keywords over google. Topics are exchange rates of US Dollar/Turkish Lira and "dolar ne kadar" keyword, consumer price index and "enflasyon" keyword, house sales in Turkey and "satilik ev" keyword.
@@ -24,7 +23,6 @@ library(readr)
 library(readxl)
 library(data.table)
 library(zoo)
-
 
 
 ##The data
