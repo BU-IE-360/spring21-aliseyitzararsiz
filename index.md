@@ -6,4 +6,4 @@
 
 ## Homework 1
 
-[Here](files/homework1.html) is my time series data visualization examples about Turkey's three key economical concepts.
+[Here](files/homework1/homework1.html) is my time series data visualization examples about Turkey's three key economical concepts.
