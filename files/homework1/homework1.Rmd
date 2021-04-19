@@ -1,0 +1,97 @@
+---
+title: "Homework1_ie360"
+author: "Ali Seyit Zararsız"
+date: "18.04.2021"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+In this study, I investigate three measures of Turkey and their relatable keywords over google. Topics are exchange rates of US Dollar/Turkish Lira and "dolar ne kadar" keyword, consumer price index and "enflasyon" keyword, house sales in Turkey and "satilik ev" keyword.
+
+All data are taken from EVDS and google trends. If you want to check their websites please click [here](https://evds2.tcmb.gov.tr/) for EVDS and [here](https://trends.google.com/trends/) for google trends.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(  warning = FALSE,	message = FALSE)
+setwd("C:\\Users\\aliseyit\\Documents\\GitHub\\spring21-aliseyitzararsiz\\files\\homework1")
+
+##The libraries i need for this study
+
+library(ggplot2)
+library(readr)
+library(readxl)
+library(data.table)
+library(zoo)
+
+
+
+##The data
+usd_try <- read_excel("usd_try.xlsx")
+dolar_ne_kadar <- read_excel("dolar_ne_kadar.xlsx")
+consumer_price_index <- read_excel("consumer_price_index.xlsx")
+enflasyon <- read_excel("enflasyon.xlsx")
+konut_satisi <- read_excel("konut_satisi.xlsx")
+satilik_ev <- read_excel("satilik_ev.xlsx")
+
+usd_try = data.frame(date=as.yearmon(usd_try$Tarih), value = usd_try$USD)
+dolar_ne_kadar = data.frame(date=as.yearmon(dolar_ne_kadar$Tarih), value = dolar_ne_kadar$Deger)
+consumer_price_index = data.frame(date=as.yearmon(consumer_price_index$Tarih), value = consumer_price_index$CPI)
+enflasyon = data.frame(date=as.yearmon(enflasyon$Tarih), value = enflasyon$Deger)
+konut_satisi = data.frame(date=as.yearmon(konut_satisi$Tarih), value = konut_satisi$Satis)
+satilik_ev = data.frame(date=as.yearmon(satilik_ev$Tarih), value = satilik_ev$Deger)
+
+```
+
+## 1) Exchange Rate of US Dollar/Turkish Lira
+
+```{r dollar/lira, fig.align='center',echo=FALSE}
+ggplot(usd_try, aes(x=date, y=value, color="red")) + geom_line()+ geom_point() + labs(title = 'Exchange Rate of USD/TRY ', x= "Date", y = "Level") 
+
+```
+Here we can easily see that beginning from our observations this exchange rate has continuously increased over the years. This may show Turkey's economic situation with respect to US. Biggest jump in the time series happened in 2018 due to an economical crisis.
+
+```{r google dollar, fig.align='center',echo=FALSE}
+ggplot(dolar_ne_kadar, aes(x=date, y=value, color="red")) + geom_line() + geom_point() + labs(title = 'Google Search of "dolar ne kadar" ', x= "Date", y = "Level") 
+
+```
+In this graph year 2018 grabs your attention, as I remember correctly, whole nation checks the dollar exchange rate frequently during that big spike. It matches perfectly with this observations.
+
+
+## 2) Consumer Price Index for Turkey (Base 2003=100)
+
+```{r cpi, fig.align='center',echo=FALSE}
+ggplot(consumer_price_index, aes(x=date, y=value, color="red")) + geom_line() + geom_point() + labs(title = 'Consumer Price Index ', x= "Date", y = "Level") 
+
+```
+Turkey's general economic position in the last years has been losing power significantly. Most people can not afford their so called "baskets". In this time series data you may see that price levels has gone upwards almost everytime. This has to be a result of inflation over the years. 
+
+```{r inflation, fig.align='center',echo=FALSE}
+ggplot(enflasyon, aes(x=date, y=value, color="red")) + geom_line()+  geom_point() + labs(title = 'Google Search of "enflasyon" ', x= "Date", y = "Level") 
+
+```
+In this time series data we can observe some seasonality. Each year there are some expectations about the inflation levels, after the announcement of official inflation level people want to compare this level to their daily lives. Highest points of the line are usually first and sixth months of a year, just as the time inflation is announced. Lastly the big spike in 2018 was a result of the fear in nation's thoughts due to the economical crisis.
+
+## 3) House Sales of All Regions in Turkey
+
+
+```{r house sales, fig.align='center',echo=FALSE}
+ggplot(konut_satisi, aes(x=date, y=value, color="red")) + geom_line() + geom_point() + labs(title = 'House Sales ', x= "Date", y = "Level") 
+
+```
+In the house sales time series data, anyone can say it is not stable. This data is highly related with the house loans, housing sector, urban transformation and zoning laws. However fluctuations after the third quarter of 2019 are abnormally high. First the sales rose with high loans than hit bottom with Dr. Koca announcing the first victim with an coronavirus. Almost every sector has taken huge damages and government has to do some corrections which starts with highering the rates again. I think this cycle will continue and can change any moment with government decisions.
+
+
+```{r satilik ev, fig.align='center',echo=FALSE}
+ggplot(satilik_ev, aes(x=date, y=value, color="red")) + geom_line() + geom_point() + labs(title = 'Google Search of "satilik ev" ', x= "Date", y = "Level") 
+
+```
+In this graph, there are smaller fluctuations. The government's touch to awake the economy came to play in this google search. We as Turkish people tend to love checking over the house sales websites and car sales websites, even if the one will not think about buying anything she probably spends hours to investigate deep. This intention may lower the seasonality effect on this data.
+
+
+## References
+
+[Google Trends](https://trends.google.com/trends/?geo=US)
+
+[EVDS](https://evds2.tcmb.gov.tr/index.php)
