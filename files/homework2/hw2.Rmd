@@ -1,0 +1,148 @@
+---
+title: "homework2"
+author: "Ali Seyit Zararsız"
+date: "07 05 2021"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+# Introduction
+
+The aim of this study is to forecast the total number of first hand housing sales in Turkey at April 2021 with creating models. Many people tend to spend their money on houses since it feels like a big step in our society. Therefore, it is one of the major indicators in macroeconomics. With the time series data, it enables us to forecast future values. 
+
+All the datas are taken from EVDS and chosen independent factors are:
+  1. Survey about plans to buy a home
+  2. Interest rates of housing loans.
+ 
+
+# Data Manipulations
+
+Libraries used for this project:
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+setwd("C:\\Users\\aliseyit\\Documents\\GitHub\\spring21-aliseyitzararsiz\\files\\homework2")
+
+library(ggplot2)
+library(zoo)
+library(openxlsx)
+library(data.table)
+library(forecast)
+library(GGally)
+data <- read.xlsx("Turkey_first_hand_sale.xlsx",colNames = TRUE)
+data$Date <- as.yearmon(data$Date)
+sales<-as.data.table(data)
+tail(data)
+data_timeseries <- ts(data,frequency=12, start=c(2013,1))
+```
+
+# Analysis
+
+We need to visualize the target variable to see if there is any pattern on the time series data. 
+
+```{r, echo=TRUE}
+ggplot(data, aes(x=Date, y=Sales)) + geom_line(color="blue")+ ggtitle("First Hand Sales") + xlab("Date") + ylab("Sales")
+``` 
+  We can see that there is an increasing trend and some seasonality until 2019. After that point variance has increased and trend slope changed its direction.
+  
+```{r , warning=FALSE,echo=TRUE}
+ggplot(data, aes(Sales))+geom_histogram(bins=10,color="blue",fill="red")+ggtitle("Histogram for First Hand Sales") + xlab("Sales") + ylab("Frequency")
+```
+By looking at this histogram, we can see that this data distributes normally with some outliers and high variances.
+
+
+```{r , warning=FALSE,message=FALSE, echo=FALSE}
+ggpairs(sales[,.(Sales,Survey,Interest_rates)])
+```
+
+Here you can see,our data has not significant correlations. That's why our model probably will not work as expected. Survey can be chosen as a regressor for the model.
+
+# Model
+
+
+We are starting to build our model. Trend component is searched.
+```{r,echo=FALSE}
+sales[,trend:=1:.N]
+fit <- lm(Sales~trend,data=sales)
+summary(fit)
+```
+
+ High p-value and the low r-squared value shows us that this model is not significant. 
+
+ It is time to check if there is any seasonality component. 
+
+```{r,echo=FALSE}
+month=seq(1,12,by=1)
+sales=cbind(sales,month)
+```
+
+```{r}
+fit2<-lm(Sales~trend + as.factor(month),data=sales)
+summary(fit2)
+```
+This a better model than the first one since its p value is smaller and adjusted r-squared value is higher.
+
+Survey regressor is added to the model.
+```{r}
+fit3 <-lm(Sales~Survey+trend+as.factor(month),data=sales)
+summary(fit3)
+```
+Our model is getting better however still not enough.
+
+```{r,echo=FALSE,message=FALSE}
+checkresiduals(fit3)
+```
+
+Here the normal distribution fits better than other models. Now it is time to plot our model to see its validation.
+
+```{r ,warning=FALSE, echo=FALSE}
+sales[,fitted:=fitted(fit3)]
+sales[,residual:=residuals(fit3)]
+ggplot(sales,aes(x=fitted,y=residual))+geom_point() + geom_abline(slope=0,intercept = 0)+xlab("Fitted Values")+ylab("Residuals")
+```
+
+Resiudals are randomly distributed can be said however positive and outlier points still stands.
+
+
+```{r ,warning=FALSE, echo=FALSE}
+ggplot(sales, aes(x=fitted,y=Sales))+geom_point()+geom_abline(slope=1,intercept = 0)+xlab("Fitted First Hand Sales")+ylab("Actual First Hand Sales")
+```
+
+  Fitted and actual values does not fit highly however, it is still useful to predict our target variable.
+
+# Forecasting 
+
+
+```{r echo=FALSE, warning=FALSE}
+sales=rbind(sales, data.table(Date= as.yearmon("2021-04")),fill=T)
+sales[100,trend:=100]
+predict(sales$Survey)
+```
+
+```{r echo=FALSE,warning=FALSE}
+sales=rbind(sales, data.table(Date= as.yearmon("2021-04")),fill=T)
+sales[100,trend:=100]
+predict(sales$Sales)
+```
+
+Here we can find the point forecasted value of 36305.6 for April 2021.
+
+# Conclusion
+
+  Our model does not fit very well since its correlation values with regressors are not significant. For that reason I expect that the forecasted value of this model will not fit with the actual value of April 2021. The April value has still not announced yet, therefore I could not check this model is validated or not. However my prediction of the residual value will be very large.
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
