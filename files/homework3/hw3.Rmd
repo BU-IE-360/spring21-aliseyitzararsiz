@@ -1,0 +1,349 @@
+---
+title: "hw3"
+author: "Ali Seyit Zararsız 2017402045"
+date: "06 06 2021"
+output:
+  html_document:
+    toc: true
+    
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:\\Users\\aliseyit\\Documents\\GitHub\\spring21-aliseyitzararsiz\\files\\homework3")
+
+library(data.table)
+library(lubridate)
+library(forecast)
+library(zoo)
+library(urca)
+library(tidyverse)
+library(stats)
+library(ggplot2)
+```
+
+# Introduction
+
+  In this report, I will study the hourly electricity consumption of Turkey and try to predict the next 14 days' consumption with an appropriate ARMA model. The dates include 1st of January 2016 until 20th of May 2021. All data used for this study is publicly available in [Transparency Platform by EPİAŞ](seffaflik.epias.com.tr/transparency/).
+  
+
+#Data Preparation
+
+```{r}
+consumptiondata=fread('RealTimeConsumption-01012016-20052021.csv')
+
+
+#str(consumptiondata)
+setnames(consumptiondata, 3, "Consumption")
+consumptiondata[,Consumption:=as.numeric(gsub(",", "", Consumption))]
+consumptiondata[,datetime:=paste(Date,Hour)]
+consumptiondata[,datetime:=as.POSIXct(datetime, format= "%d.%m.%Y %H:%M" ,tz="UTC")]
+#head(consumptiondata)
+str(consumptiondata)
+```
+
+
+```{r }
+head(consumptiondata)
+```
+
+
+# Seasonality Analysis
+
+I think that electric consumption should be affected from hours of the day, days of the week and month of the year. So I will search any seasonality patterns in these time regions.
+
+
+## Hourly Seasonality Analysis
+
+Let me start with hourly seasonality since everbody's behavior of consuming electricity changes from day to night. The data will be converted to a time series data with a frequency of 24.
+
+```{r echo=TRUE}
+hourly = consumptiondata[, Consumption]
+ts_hour<-ts(hourly, freq=24)
+ts.plot(ts_hour,main="Consuming of Electricity by hours")
+```
+  We see an outlier in the first year which maybe caused by a huge shutdown in the big cities or factories. We also see a slightly increasing trend throughout the time and some seasonality. The decrease in the late part of the time series data is the conclusion of the decision that the government made during coronavirus pandemic.
+  
+```{r echo=TRUE}
+acf(ts_hour)
+pacf(ts_hour)
+```
+
+  We see a high correlation on the first lag which corresponds to the 24th hour of the day. This information gives us that our time series object has hourly seasonality. The results in Partial ACF is consistent with our findings.
+  
+  The next step is to decompose this series. There are two types of decomposition, additive and multiplicative. Here I choose the additive type of decomposition since the variance of data seems constant over time.
+  
+```{r echo=TRUE}
+Hourly_additive<-decompose(ts_hour, type="add")
+plot(Hourly_additive)
+```
+  Here trend seems clearly, however seasonality is a black box so I will plot its first 50 points to investigate more clearly.
+
+```{r echo=TRUE}
+plot(Hourly_additive$seasonal[1:50], type='l')
+```
+
+  We can see the 24 hour seasonality clearly in this plot. 
+  
+  
+## Weekly Seasonality Analysis
+
+```{r message=FALSE, warning=FALSE}
+ts_week=ts(consumptiondata$Consumption,frequency = 24*7)
+Weekly_additive=decompose(ts_week, type = "add")
+plot(Weekly_additive)
+acf(ts_week,na.action=na.pass)
+```
+
+To weekly decomposition I choose the frequency value of 24*7 of my time series object. Seasonality of hours and days seems pretty obvious here as 0.14 lag value is the highest correlation.
+
+
+## Monthly Seasonality Analysis
+
+```{r message=FALSE, warning=FALSE}
+ts_month=ts(consumptiondata$Consumption,frequency = 24*7*52)
+Monthly_additive=decompose(ts_month, type = "add")
+plot(Monthly_additive)
+acf(ts_month,na.action=na.pass)
+```
+
+In the monthly decompoistion I chose the frequency value of 24*7*52). Autocorrelation values are still high.
+
+
+Different seasonality values are investigated during the study. Clearly the seasonality on a weekly basis is the most significant one. To construct our model I choose the frequency as 168.
+
+
+# Modelling
+
+
+## Deseasonalize and Detrend
+
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+model<-ts(ts_week,start(2016,1),frequency = 168)
+model_additive<-decompose(model, type = "additive")
+plot(model_additive$seasonal[1:800], type='l')
+```
+
+Here the time series object is decomposed additively with the frequency of 168.
+
+```{r echo=TRUE, message=FALSE}
+summary(ur.kpss(model_additive$random))
+```
+
+
+This data is sufficient to build our model around. Random component's stationary condition is satisfied since it's test-statistic value is lower than the critical values.
+
+
+### Deseasonalization
+
+```{r echo=TRUE, message=FALSE}
+model_deseasonalized<-model-model_additive$seasonal
+plot(model_deseasonalized[0:47208], type = 'l')
+acf(model_deseasonalized, na.action = na.pass)
+```
+
+It still seems correlated since we do not remove the yearly seasonality. Trend component is still inside the model next step is to eliminate it.
+
+
+### Detrendation
+
+```{r echo=TRUE}
+model_detrend<-model_deseasonalized-model_additive$trend
+plot(model_detrend[0:47208], type = 'l')
+acf(model_detrend,na.action = na.pass)
+```
+
+  We can see that there are lots of outlier points in our data from the plot. ACF values are getting lower which is what we want. It still can be better but the next step is to build AR & MA models therefore, we can continue to build our models using this data.
+  
+
+##AR & MA Models
+
+### AR Models
+
+
+```{r echo=TRUE}
+Model1<-arima(model_additive$random, order=c(1,0,0))
+
+Model2<-arima(model_additive$random, order=c(2,0,0))
+
+Model3<-arima(model_additive$random, order=c(3,0,0))
+
+Model4<-arima(model_additive$random, order=c(4,0,0))
+
+Model5<-arima(model_additive$random, order=c(5,0,0))
+
+Model6<-arima(model_additive$random, order=c(6,0,0))
+
+Model7<-arima(model_additive$random, order=c(7,0,0))
+```
+
+AR models are constructed now with the p values of 1:7. Now I check to see which model's AIC value is the lowest.
+
+```{r echo=TRUE}
+AIC(Model1)
+```
+```{r echo=TRUE}
+AIC(Model2)
+```
+```{r echo=TRUE}
+AIC(Model3)
+```
+```{r echo=TRUE}
+AIC(Model4)
+```
+```{r echo=TRUE}
+AIC(Model5)
+```
+```{r echo=TRUE}
+AIC(Model6)
+```
+```{r echo=TRUE}
+AIC(Model7)
+```
+
+The lowest value is 722806.9 of Model6. I choose the sixth model to build ARIMA models. Now checking on the MA models.
+
+
+### MA Models
+
+
+```{r echo=TRUE}
+Model1<-arima(model_additive$random, order=c(0,0,1))
+
+Model2<-arima(model_additive$random, order=c(0,0,2))
+
+Model3<-arima(model_additive$random, order=c(0,0,3))
+
+Model4<-arima(model_additive$random, order=c(0,0,4))
+
+Model5<-arima(model_additive$random, order=c(0,0,5))
+
+Model6<-arima(model_additive$random, order=c(0,0,6))
+
+Model7<-arima(model_additive$random, order=c(0,0,7))
+```
+
+MA models are constructed now with the q values of 1:7. Now I check to see which model's AIC value is the lowest.
+
+```{r echo=TRUE}
+AIC(Model1)
+```
+```{r echo=TRUE}
+AIC(Model2)
+```
+```{r echo=TRUE}
+AIC(Model3)
+```
+```{r echo=TRUE}
+AIC(Model4)
+```
+```{r echo=TRUE}
+AIC(Model5)
+```
+```{r echo=TRUE}
+AIC(Model6)
+```
+```{r echo=TRUE}
+AIC(Model7)
+```
+
+AIC values will go low as their q values getting higher and it will cause a complex model to build. I will select the fifth model since after that the magnitude of the decreases are not as high as before.
+
+### AR & MA Model
+
+```{r echo=TRUE}
+Model_Final<-arima(model_additive$random, order=c(6,0,5))
+AIC(Model_Final)
+```
+
+As expected the Model_Final resulted the lowest AIC value. We can fit our model ob that.
+
+
+### Model Fitting
+
+
+```{r echo=TRUE}
+Fitted<-model_additive$random-Model_Final$residuals
+modeltransformed<-Fitted+model_additive$seasonal+model_additive$trend
+
+plot(model, type ='l')
+points(modeltransformed,type='l', col = 3)
+
+plot(model[41000:42000], type ='l')
+points(modeltransformed[41000:42000],type='l', col = 3)
+```
+
+It fits our model and even it get some outlier points.
+
+# Forecasting
+
+
+```{r echo=TRUE}
+consumptiondata[,fitted:=modeltransformed]
+consumptiondata$fitted[1:100]
+```
+
+  The first 84 value is listed as NA and we have to get rid of them.
+  
+```{r message=FALSE, warning=FALSE}
+res_fit = residuals((Model_Final))
+consumptiondata[,fit_res:=res_fit]
+
+na_84=mean(consumptiondata$fitted[85:168])
+na_84_res=mean(consumptiondata$fit_res[85:168])
+
+consumptiondata$fitted[1:84]= na_84
+consumptiondata$fit_res[1:84]=na_84_res
+
+test_set = consumptiondata[(.N-359):.N]
+res_tes=predict(Model_Final,n.ahead = 84)$pred
+
+endtrend_84 = tail(model_additive$trend[!is.na(model_additive$trend)],84)
+endseason_84= tail(model_additive$seasonal[!is.na(model_additive$seasonal)],84)
+
+end_comb = res_tes+endtrend_84+endseason_84
+
+consumptiondata$fitted[47125:47208]=end_comb
+
+ggplot(consumptiondata , aes(x=datetime) )  +
+  geom_line(aes(y=fitted , col = "fitted")) +
+  geom_line(aes(y=Consumption , col="actual"))
+
+```
+ After we get rid of the NAs and lags it is time to forecast the last two weeks. 
+ 
+```{r message=FALSE, warning=FALSE}
+actual = consumptiondata[datetime<='2020-05-20 23:00' & datetime>='2020-05-06 00:00' , Consumption ]
+forecast = consumptiondata[datetime<='2020-05-20 23:00' & datetime>='2020-05-06 00:00' , fitted ]
+forecast = as.numeric(forecast)
+error = abs(actual - forecast)
+percentage=error/consumptiondata[datetime<='2020-05-20 23:00' & datetime>='2020-05-06 00:00' , Consumption ]
+wape=(sum(percentage)/360)*100
+wape
+```
+```{r message=FALSE, warning=FALSE}
+ts.plot(forecast)
+```
+
+# Conclusion 
+
+In this study, I tried to construct an AR & MA model to forecast the electricity consumption of Turkey for 2 weeks. Frequency of 168 is chosen for the seasonality and I tried to fit an AR & MA model on that. Comparing different p and q values ARIMA(6,0,5) resulted best and used for the model. Then I fitted a model with p=6 q=5 and made 14 days predictions. Finally, error measures and WMAPE are calculated.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
